@@ -1,0 +1,55 @@
+# External uptime check of mvv42.ru (see check.sh). Public repo: Actions minutes are free.
+# GitHub may delay scheduled runs by 10-30 min; that is fine for a watchdog of last resort.
+name: uptime
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write # re-enable this workflow (60-day inactivity rule) and prune old state caches
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      # Caches are immutable: every run saves a new key, the newest one is restored.
+      - name: Restore the previous state
+        uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: uptime-state-${{ github.run_id }}
+          restore-keys: uptime-state-
+
+      - name: Check mvv42.ru
+        env:
+          TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: bash check.sh
+
+      - name: Save the state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: state
+          key: uptime-state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Housekeeping (keep the schedule alive, drop old state caches)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Scheduled workflows of a repo without activity are disabled after 60 days;
+          # enabling it again on every run keeps it alive.
+          gh workflow enable uptime.yml -R "$GITHUB_REPOSITORY" || true
+          gh cache list -R "$GITHUB_REPOSITORY" --key uptime-state- --sort created_at --order desc --limit 100 --json id \
+            --jq '.[5:][].id' | xargs -r -n1 gh cache delete -R "$GITHUB_REPOSITORY" || true
