@@ -20,11 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # Caches are immutable: every run saves a new key, the newest one is restored.
       - name: Restore the previous state
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: state
           key: uptime-state-${{ github.run_id }}
@@ -38,7 +38,7 @@ jobs:
 
       - name: Save the state
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: state
           key: uptime-state-${{ github.run_id }}-${{ github.run_attempt }}
